@@ -3,9 +3,6 @@
 Transforme sua webcam em uma arte ASCII animada diretamente no terminal!  
 Este script em Python captura cada frame da webcam, converte para tons de cinza e mapeia cada pixel para um caractere ASCII, exibindo o resultado em tempo real.
 
-![Demonstração ASCII](https://via.placeholder.com/800x400?text=ASCII+Webcam+Demo)  
-*(Substitua por uma imagem/GIF real do seu projeto)*
-
 ## ✨ Funcionalidades
 
 - Captura ao vivo da webcam (padrão: dispositivo `0`)
