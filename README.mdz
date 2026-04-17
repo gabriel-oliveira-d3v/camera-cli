@@ -1,0 +1,35 @@
+# 📷 Webcam to ASCII
+
+Transforme sua webcam em uma arte ASCII animada diretamente no terminal!  
+Este script em Python captura cada frame da webcam, converte para tons de cinza e mapeia cada pixel para um caractere ASCII, exibindo o resultado em tempo real.
+
+![Demonstração ASCII](https://via.placeholder.com/800x400?text=ASCII+Webcam+Demo)  
+*(Substitua por uma imagem/GIF real do seu projeto)*
+
+## ✨ Funcionalidades
+
+- Captura ao vivo da webcam (padrão: dispositivo `0`)
+- Conversão de cada frame para arte ASCII com proporção ajustada automaticamente
+- Mapeamento de intensidade de cinza para caracteres (`@%#*+=-:. ` – do mais escuro ao mais claro)
+- Limpeza suave do terminal a cada frame (suporte Windows/Linux/macOS)
+- Baixo consumo de CPU (delay ajustável)
+- Saída rápida com `Ctrl+C`
+
+## 📋 Pré-requisitos
+
+- Python 3.6 ou superior
+- Webcam funcional
+
+## 🔧 Instalação
+
+1. **Clone o repositório**
+   ```bash
+   git clone https://github.com/seu-usuario/webcam-ascii.git
+   cd webcam-ascii
+2. **baixe as dependencias**
+   ```bash
+   pip install opencv-python numpy
+## 🚀 Como usar
+   Execute o script:
+   ```bash
+   python camera.py
