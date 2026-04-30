@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+import cv2
+import numpy as np
+import sys
+import os
+import shutil
+import time
+import signal
 
 # ----------------------------------------------------------------------
 # Leitura de teclas não-bloqueante (cross-platform)
@@ -7,209 +15,168 @@ if os.name == 'nt':
     def get_key_nonblock():
         if msvcrt.kbhit():
             key = msvcrt.getch()
-            try:
-                return key.decode('utf-8')
-            except UnicodeDecodeError:
-                return key.decode('latin-1', errors='replace')
+            try: return key.decode('utf-8')
+            except: return key.decode('latin-1', errors='replace')
         return None
 else:
-    import termios
-    import select
-    import tty
-
+    import termios, select, tty
     def get_key_nonblock():
         fd = sys.stdin.fileno()
         try:
             old_settings = termios.tcgetattr(fd)
             tty.setraw(fd)
             r, _, _ = select.select([sys.stdin], [], [], 0)
-            if r:
-                return sys.stdin.read(1)
-            return None
-        except:
-            return None
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            return sys.stdin.read(1) if r else None
+        except: return None
+        finally: termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 # ----------------------------------------------------------------------
 # Paletas
 # ----------------------------------------------------------------------
 PALETTES = {
-    "1. Single block":   "█",
-    "2. Solid block":    "▓▒░ ",
-    "3. Minimalist":     ". ",
-    "4. Medium set":     "@%#*+=-:. ",
-    "5. Longer set":     "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
-    "6. Full set":       "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
-    "7. Max":            " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
-    "8. Alphabetic":     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ",
-    "9. Alphanumeric":   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ",
-    "10. Arrow":         " .-+*#%@►◄▲▼",
-    "11. Extended High": "█▓▒░@#%&*+-=:. ",
-    "12. Math Symbols":  "∑∫√∞≈≠≤≥÷×¬∧∨∩∪∈∉⊂⊃⊆⊇⊕⊗⊥∠∟∆∇∂∈∋∀∃∄∅∗∘∙√∛∜∝∞∟∠∡∢ ",
-    "13. Numerical":     "0O8@%#*+=-:,. ",
-    "14. Binary":        "01",
+    "1. Single block": "█",
+    "2. Solid block": "▓▒░ ",
+    "3. Minimalist": ". ",
+    "4. Medium set": "@%#*+=-:. ",
+    "5. Longer set": "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
+    "6. Binary": "01",
+    "7. Braille": "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟",
+    "8. Extended Braille": "⠀⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠩⠚⠛⠜⠩⠝⠩⠩⠩",
+    "9. Shades": " ░▒▓█",
+    "10. Crosshatch": " .:/\\|X#",
+    "11. Math": " .+=÷×∞",
+    "12. Arrows": " .·+*#%@►◄▲▼",
+    "13. Blocks": " ▖▗▘▙▚▛▜▟█",
+    "14. Dots": " .·°º¤",
+    "15. Matrix": " 01",
+    "16. Geometric": " .•○●",
+    "17. Slash": " \\|/",
+    "18. Vertical": "  ▂▃▄▅▆▇█",
+    "19. Brackets": " ([{}])",
+    "20. Currency": " .:-¡¢£¤¥¦§¨©ª",
+    "21. Alpha": "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
 }
 
 # ----------------------------------------------------------------------
-def get_terminal_width(offset=4, fallback=160):
+def get_terminal_size_full():
+    """Captura o tamanho exato do terminal."""
     try:
-        cols, _ = shutil.get_terminal_size()
-        return max(20, cols - offset)
+        cols, lines = shutil.get_terminal_size()
+        return cols, lines
     except:
-        return fallback
+        return 80, 24
 
 # ----------------------------------------------------------------------
 def show_menu():
     """Exibe o menu e retorna o nome da paleta escolhida."""
     os.system('cls' if os.name == 'nt' else 'clear')
     print("=" * 60)
-    print(" Webcam → ASCII Art Colorida ".center(60, "="))
+    print(" SELECIONE A PALETA ".center(60, "="))
     print("=" * 60)
-    print("\nEscolha uma paleta de caracteres:\n")
-    for name in PALETTES.keys():
+    keys = list(PALETTES.keys())
+    for name in keys:
         print(f"  {name}")
     print("\n  Q. Sair")
     print("-" * 60)
     
     while True:
         choice = input("Digite o número (ou Q): ").strip().lower()
-        if choice == 'q':
-            sys.exit(0)
-        for name in PALETTES.keys():
-            if name.startswith(choice + '.'):
-                return name
-        print("Opção inválida. Tente novamente.")
+        if choice == 'q': sys.exit(0)
+        for name in keys:
+            if name.startswith(choice + '.'): return name
+        print("Opção inválida.")
 
 # ----------------------------------------------------------------------
 # Funções vetorizadas para geração da arte ASCII
 # ----------------------------------------------------------------------
-def frame_to_ascii_vectorized(frame, palette, new_width):
+def frame_to_ascii_vectorized(frame, palette, tw, th):
     """
     Converte um frame BGR para uma string ASCII colorida usando NumPy.
-    Retorna a string pronta para exibição.
+    Retorna a string pronta para exibição preenchendo todo o terminal.
     """
-    # Redimensiona mantendo proporção
-    height, width = frame.shape[:2]
-    aspect_ratio = height / width
-    new_height = int(aspect_ratio * new_width * 0.55)
-    resized = cv2.resize(frame, (new_width, new_height))
+    resized = cv2.resize(frame, (tw, th)) # Redimensiona para ocupar 100% do terminal
+    
+    B, G, R = resized[..., 0], resized[..., 1], resized[..., 2] # Separa canais BGR e converte para RGB
+    gray = (0.2989 * R + 0.5870 * G + 0.1140 * B).astype(np.uint8) # Calcula luminância (escala de cinza)
 
-    # Separa canais BGR e converte para RGB
-    B, G, R = resized[..., 0], resized[..., 1], resized[..., 2]
-
-    # Calcula luminância (escala de cinza)
-    gray = (0.2989 * R + 0.5870 * G + 0.1140 * B).astype(np.uint8)
-
-    # Mapeia intensidade para índices da paleta
-    indices = (gray / 255.0 * (len(palette) - 1)).astype(int)
+    indices = (gray / 255.0 * (len(palette) - 1)).astype(int) # Mapeia intensidade para índices da paleta
     np.clip(indices, 0, len(palette) - 1, out=indices)
+    
+    char_array = np.array(list(palette)) # Array de caracteres da paleta
+    ascii_chars = char_array[indices]
 
-    # Array de caracteres da paleta
-    char_array = np.array(list(palette))
-    ascii_chars = char_array[indices]   # matriz (new_height, new_width) de caracteres
-
-    # Função vetorizada para criar string ANSI colorida por pixel
     def make_ansi(r, g, b, ch):
         return f"\033[38;2;{r};{g};{b}m{ch}"
-    vfunc = np.frompyfunc(make_ansi, 4, 1)
-    ansi_matrix = vfunc(R, G, B, ascii_chars)  # array de objetos string
+    
+    vfunc = np.frompyfunc(make_ansi, 4, 1) # Função vetorizada para criar string ANSI colorida por pixel
+    ansi_matrix = vfunc(R, G, B, ascii_chars)
 
-    # Junta as linhas com reset de cor e quebra de linha
-    lines = []
-    for row in ansi_matrix:
-        line = ''.join(row)
-        # Garante largura exata preenchendo com espaços se necessário
-        if len(line) < new_width:
-            line += ' ' * (new_width - len(line))
-        lines.append(line + "\033[0m")
-    return '\n'.join(lines)
+    lines_out = [''.join(row) + "\033[0m\033[K" for row in ansi_matrix] # Junta as linhas com reset e limpeza de resíduos
+    return '\n'.join(lines_out) + "\033[J"
 
 # ----------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Webcam ASCII Art Colorida (otimizada)")
-    parser.add_argument("--offset", type=int, default=4,
-                        help="Colunas a subtrair da largura do terminal (padrão: 4)")
-    args = parser.parse_args()
-    offset = args.offset
+    while True:
+        palette_name = show_menu()
+        active_palette = PALETTES[palette_name]
 
-    # Menu inicial
-    palette_name = show_menu()
-    active_palette = PALETTES[palette_name]
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Erro ao acessar câmera.")
+            return
 
-    # Câmera
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Erro: não foi possível acessar a webcam.")
-        sys.exit(1)
+        # Sequências ANSI de controle
+        ENTER_ALT, EXIT_ALT = "\033[?1049h", "\033[?1049l"
+        HIDE_CUR, SHOW_CUR = "\033[?25l", "\033[?25h"
+        HOME = "\033[H"
 
-    ascii_width = get_terminal_width(offset)
-    frame_count = 0
-    last_check = 0
+        sys.stdout.write(ENTER_ALT + HIDE_CUR)
+        sys.stdout.flush()
 
-    print(f"\nIniciando com paleta: {palette_name}")
-    print("Largura ajustada:", ascii_width, "colunas")
-    print("Controles: 'p' troca paleta, 'q' sai, 'h' ajuda")
-    time.sleep(1.5)
+        running = [True] 
+        def cleanup(return_to_menu=True):
+            if running[0]:
+                running[0] = False
+                cap.release()
+                sys.stdout.write("\033[0m" + SHOW_CUR + EXIT_ALT)
+                sys.stdout.flush()
+            if not return_to_menu:
+                sys.exit(0)
 
-    # FPS alvo
-    target_fps = 30
-    frame_time = 1.0 / target_fps
+        signal.signal(signal.SIGINT, lambda s, f: cleanup(return_to_menu=True))
 
-    # Move cursor para o topo (modo de sobreposição)
-    HOME_CURSOR = "\033[H"
+        try:
+            while running[0]:
+                start_time = time.time()
+                ret, frame = cap.read()
+                if not ret: break
 
-    try:
-        while True:
-            start_time = time.time()
+                tw, th = get_terminal_size_full() # Atualiza tamanho da janela a cada frame
+                
+                ascii_art = frame_to_ascii_vectorized(frame, active_palette, tw, th)
 
-            ret, frame = cap.read()
-            if not ret:
-                break
+                sys.stdout.write(HOME + ascii_art) # Posiciona cursor no início e imprime
+                sys.stdout.flush()
 
-            # Atualiza largura a cada 30 quadros
-            frame_count += 1
-            if frame_count - last_check >= 30:
-                new_width = get_terminal_width(offset)
-                if new_width != ascii_width:
-                    ascii_width = new_width
-                last_check = frame_count
-
-            # Gera arte ASCII vetorizada
-            ascii_art = frame_to_ascii_vectorized(frame, active_palette, ascii_width)
-
-            # Posiciona cursor no início e imprime
-            sys.stdout.write(HOME_CURSOR + ascii_art)
-            sys.stdout.write(f"\nPaleta: {palette_name.split('.',1)[1].strip()} | {ascii_width} col. | 'p' troca 'q' sai 'h' ajuda")
-            sys.stdout.flush()
-
-            # Verifica teclas
-            key = get_key_nonblock()
-            if key is not None:
-                key = key.lower()
+                key = get_key_nonblock() # Verifica teclas
                 if key == 'q':
-                    break
+                    cleanup(return_to_menu=False)
+                    return
                 elif key == 'p':
                     names = list(PALETTES.keys())
-                    idx = names.index(palette_name)
-                    idx = (idx + 1) % len(names)
+                    idx = (names.index(palette_name) + 1) % len(names)
                     palette_name = names[idx]
                     active_palette = PALETTES[palette_name]
-                elif key == 'h':
-                    sys.stderr.write("\n[p]aleta seguinte  [q]sair  [h]ajuda\n")
 
-            # Controle de FPS
-            elapsed = time.time() - start_time
-            sleep_time = frame_time - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+                elapsed = time.time() - start_time # Controle de FPS
+                if (1/30) > elapsed: time.sleep((1/30) - elapsed)
 
-    except KeyboardInterrupt:
-        pass
-    finally:
-        cap.release()
-        sys.stdout.write("\033[0m\033[H\033[2J")   # reset de cor + limpa tela
-        print("Programa encerrado.")
+        except (KeyboardInterrupt, EOFError):
+            cleanup(return_to_menu=True)
+        finally:
+            cap.release()
+            sys.stdout.write("\033[0m" + SHOW_CUR + EXIT_ALT)
+            sys.stdout.flush()
 
 if __name__ == "__main__":
     main()

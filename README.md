@@ -124,15 +124,6 @@ A conversão de altura usa um fator de 0.55 para compensar a proporção largura
 
 ---
 
-⚠️ Limitações e Soluções
-
-· Cores não aparecem: verifique se seu terminal suporta True Color (24 bits). A sequência ANSI usada é \033[38;2;R;G;Bm. Você pode testar com: echo -e "\033[38;2;255;0;0mTeste\033[0m". Se falhar, tente outro terminal.
-· Desempenho reduzido: em resoluções muito altas ou computadores mais lentos, reduza o FPS alvo (target_fps) ou limite a largura mínima na função get_terminal_width.
-· Webcam não encontrada: o código usa cv2.VideoCapture(0). Se sua câmera for outro dispositivo, altere o índice (ex: 1) ou verifique permissões de acesso à câmera.
-· Terminal piscando: isso pode ocorrer em alguns sistemas. O programa já usa \033[H para reposicionar o cursor sem clear. Se persistir, experimente um terminal diferente.
-
----
-
 📁 Estrutura do Projeto
 
 ```
@@ -142,22 +133,6 @@ webcam-to-ascii-art/
 └── requirements.txt   # (Opcional) opencv-python, numpy
 ```
 
----
-
-🖼️ Exemplo de Código (Conversão de Cor)
-
-```python
-def frame_to_ascii_vectorized(frame, palette, new_width):
-    # Redimensiona e extrai canais
-    resized = cv2.resize(frame, (new_width, new_height))
-    B, G, R = resized[..., 0], resized[..., 1], resized[..., 2]
-    gray = (0.2989 * R + 0.5870 * G + 0.1140 * B).astype(np.uint8)
-    indices = np.clip((gray / 255.0 * (len(palette) - 1)).astype(int), 0, len(palette)-1)
-    char_array = np.array(list(palette))
-    ascii_chars = char_array[indices]
-    # Gera strings ANSI
-    ...
-```
 
 ---
 
